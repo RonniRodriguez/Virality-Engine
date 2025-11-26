@@ -1,38 +1,32 @@
-# Idea Inc
+# Virality Engine
 
-> A playground for the 11 fundamental software skills — disguised as a memetic strategy game. Spin up AI-driven populations, drop your wildest ideas into the mix, mutate them with LLMs, and watch the world light up in real time.
+Virality Engine is a social-simulation lab disguised as a game. You design AI-driven populations, craft ideas or memes, let the AI service mutate those ideas in real time, and study how they move across the network. The playful surface exists so every major engineering fundamental shows up in real code instead of bullet points on a resume.
 
-## 🎯 Core Concept (In Plain English)
+## Core Concept
 
-Imagine **Plague Inc**, but instead of germs you’re shipping jokes, conspiracy theories, brand campaigns, or social movements. Every experiment looks like this:
+The experience resembles Plague Inc., but the “pathogen” is a marketing campaign, joke, or conspiracy. A typical run looks like this:
 
-1. Craft an idea (text, tags, target audience, virality knobs).
-2. Choose a world topology with 10k+ AI agents.
-3. Launch the idea, pause/rewind/boost it, and watch live graphs, heatmaps, and leaderboards.
-4. Ask the AI Service to mutate the idea mid-flight so it resonates with a new demographic.
-5. Export snapshots, share scenarios, or hook into the API like a researcher.
+1. Describe the idea: text, tags, demographics, virality/emotional sliders.
+2. Spin up a world with 10k+ agents, each with openness, influence, trust, mood, memory, and geography.
+3. Launch the idea, pause or rewind the simulation whenever you need, and watch live graphs, heat maps, mutation feeds, and leaderboards.
+4. Ask the AI service to mutate or analyze the idea so it lands with a new audience.
+5. Export the snapshot or rerun everything through the REST/GraphQL/gRPC interfaces for research or automation.
 
-All of that fun is the wrapper around a serious engineering exercise that checks every “fundamentals” box.
+## Fundamentals Snapshot
 
-## 🧱 11 Fundamentals at a Glance
+1. **API design** – FastAPI REST endpoints, GraphQL dashboard plans, gRPC contracts in `shared/proto`.
+2. **Authentication / authorization** – OAuth2/OIDC providers, short-lived JWTs, refresh flows, RBAC hooks in `services/auth_service`.
+3. **Databases** – Postgres for users/worlds, MongoDB for agent state, Redis for caching and rate limits, ClickHouse planned for analytics.
+4. **Caching** – Redis adapters in `shared/utils/cache.py`, API Gateway rate limiting, simulation snapshot caches, CDN-friendly payloads.
+5. **Event-driven flows** – Kafka abstractions in `shared/utils/events.py`; simulation emits `idea_injected`, `idea_mutated`, and `world_snapshot`.
+6. **Concurrency** – Async FastAPI everywhere, structured world-stepping loops, background workers for LLM calls, gateway streaming.
+7. **Distributed systems** – API Gateway fronting multiple services, eventual consistency via the event bus, K8s/mesh-ready manifests.
+8. **Security** – Token helpers in `shared/utils/security.py`, HTTPS defaults, rate limits, OWASP-safe parsing, Vault-ready secret loading.
+9. **Observability** – Structlog JSON logs, OpenTelemetry helper utilities, Prometheus scrape configs, Grafana dashboards.
+10. **Cloud / deployment** – Dockerfiles per service, docker-compose for local, Helm/K8s/GitOps scaffolding in `infra/`.
+11. **AI integration** – `services/ai_service` handles prompt templates, LLM client, vector store (Chroma now, Milvus later), and RAG helpers.
 
-| Skill | How we hit it |
-| --- | --- |
-| **1. API Design** | REST for public flows, GraphQL for dashboards, gRPC between microservices. |
-| **2. AuthN/AuthZ** | OAuth2/OIDC logins, JWTs, refresh tokens, passkey-ready, RBAC hooks. |
-| **3. Databases** | Postgres (users/worlds), MongoDB (agent state), Redis (snapshots/limits), ClickHouse roadmap. |
-| **4. Caching** | Redis hot caches, CDN/edge-ready snapshots, client-side caching via TanStack Query. |
-| **5. Event-Driven** | Kafka topics (mocked locally) broadcasting idea_injected, idea_mutated, snapshot_ready. |
-| **6. Concurrency** | Async FastAPI services, structured simulation loops, background workers, websockets. |
-| **7. Distributed Systems** | API Gateway + microservices, eventual consistency via event bus, service mesh ready. |
-| **8. Security** | HTTPS/TLS defaults, mTLS plan, rate limits, OWASP-safe inputs, Vault-ready secrets. |
-| **9. Observability** | Structlog JSON logs, Prometheus metrics, OpenTelemetry instrumentation, Grafana dashboards. |
-| **10. Cloud & Deployment** | Docker everywhere, Compose/K8s manifests, GitOps hooks, containerized LLM sidecars. |
-| **11. AI Integration** | LLM mutation/analyze endpoints, vector store (Chroma → Milvus), RAG context per agent. |
-
-These aren’t hypothetical — the codebase physically wires each fundamental into the gameplay loop.
-
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 This is a proper microservices playground: the gateway keeps public traffic sane, the simulation engine runs hot in its own process, the AI service sits beside a vector store, and Kafka glue (mockable locally) keeps everyone in sync. Here’s the bird’s-eye view:
 
@@ -85,7 +79,7 @@ This is a proper microservices playground: the gateway keeps public traffic sane
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Backend
 - **Language**: Python 3.11+ (FastAPI)
@@ -109,7 +103,7 @@ This is a proper microservices playground: the gateway keeps public traffic sane
 - **Visualization**: D3.js / Deck.gl for world map
 - **API Client**: GraphQL (Apollo) + REST
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 idea-inc/
@@ -138,7 +132,7 @@ idea-inc/
 └── Makefile                  # Common commands
 ```
 
-## 🎮 Core Features
+## Core Features
 
 ### MVP (Phase 1)
 - [x] User authentication (OAuth2 + JWT)
@@ -166,7 +160,7 @@ idea-inc/
 - [ ] Marketplace for idea templates
 - [ ] Monetization features
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # Clone the repository
@@ -192,24 +186,6 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-## 📊 11 Fundamentals Demonstrated
+## License
 
-Need receipts? Here’s where each skill lives in the repo:
-
-1. **API Design** – `services/api_gateway`, `shared/proto/` for gRPC.
-2. **Authentication** – `services/auth_service` (JWT flows, refresh tokens).
-3. **Databases** – `shared/utils/config.py` wiring Postgres + Mongo + Redis.
-4. **Caching** – `shared/utils/cache.py`, gateway rate limiter, snapshot caching in simulation service.
-5. **Event-Driven** – `shared/utils/events.py`, simulation emits `idea_mutated` etc.
-6. **Concurrency** – Async FastAPI apps, `simulation_service/app/engine/world.py` structured loops.
-7. **Distributed Systems** – Compose/K8s manifests, API gateway fan-out, eventual consistency via event bus.
-8. **Security** – `shared/utils/security.py`, rate limits, HTTPS-first configs.
-9. **Observability** – `shared/utils/telemetry.py`, `infra/prometheus`, structured logging middleware.
-10. **Cloud/Deployment** – Dockerfiles per service, `docker-compose.yml`, `infra/k8s/`, GitOps notes.
-11. **AI Integration** – `services/ai_service` (LLM prompts, vector store, RAG helper).
-
-## 📄 License
-
-MIT License - See [LICENSE](LICENSE) for details.
-
-# Virality-Engine
+MIT License – see [LICENSE](LICENSE) for details.
