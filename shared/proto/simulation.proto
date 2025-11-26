@@ -1,0 +1,295 @@
+// Idea Inc - gRPC Protocol Definitions
+// Used for high-throughput internal service communication
+
+syntax = "proto3";
+
+package ideainc.simulation;
+
+option go_package = "github.com/ideainc/proto/simulation";
+
+import "google/protobuf/timestamp.proto";
+
+// ============================================================================
+// Simulation Service
+// ============================================================================
+
+service SimulationService {
+    // World management
+    rpc CreateWorld(CreateWorldRequest) returns (WorldResponse);
+    rpc GetWorld(GetWorldRequest) returns (WorldResponse);
+    rpc StartWorld(StartWorldRequest) returns (WorldResponse);
+    rpc PauseWorld(PauseWorldRequest) returns (WorldResponse);
+    rpc StepWorld(StepWorldRequest) returns (StepResponse);
+    
+    // Idea operations
+    rpc InjectIdea(InjectIdeaRequest) returns (IdeaResponse);
+    rpc GetIdea(GetIdeaRequest) returns (IdeaResponse);
+    
+    // Streaming
+    rpc StreamEvents(StreamEventsRequest) returns (stream SimulationEvent);
+    rpc StreamSnapshots(StreamSnapshotsRequest) returns (stream WorldSnapshot);
+}
+
+// ============================================================================
+// Messages - World
+// ============================================================================
+
+message WorldConfig {
+    int32 population_size = 1;
+    string network_type = 2;  // scale_free, small_world, random, geo_local
+    float network_density = 3;
+    float mutation_rate = 4;
+    float decay_rate = 5;
+    int32 time_step_ms = 6;
+    optional int32 max_steps = 7;
+}
+
+message CreateWorldRequest {
+    string creator_id = 1;
+    string name = 2;
+    optional string description = 3;
+    WorldConfig config = 4;
+    bool is_public = 5;
+}
+
+message GetWorldRequest {
+    string world_id = 1;
+}
+
+message StartWorldRequest {
+    string world_id = 1;
+}
+
+message PauseWorldRequest {
+    string world_id = 1;
+}
+
+message StepWorldRequest {
+    string world_id = 1;
+    int32 steps = 2;  // Number of steps to run
+}
+
+message WorldResponse {
+    string id = 1;
+    string creator_id = 2;
+    string name = 3;
+    string description = 4;
+    WorldConfig config = 5;
+    string status = 6;  // created, running, paused, completed
+    int32 current_step = 7;
+    int32 agent_count = 8;
+    int32 idea_count = 9;
+    bool is_public = 10;
+    google.protobuf.Timestamp created_at = 11;
+    optional google.protobuf.Timestamp started_at = 12;
+}
+
+message StepResponse {
+    string world_id = 1;
+    int32 step = 2;
+    int32 events_generated = 3;
+    int32 ideas_spread = 4;
+    int32 mutations_created = 5;
+    float duration_ms = 6;
+}
+
+// ============================================================================
+// Messages - Idea
+// ============================================================================
+
+message IdeaTarget {
+    repeated string age_groups = 1;
+    repeated string interests = 2;
+    repeated string regions = 3;
+}
+
+message InjectIdeaRequest {
+    string world_id = 1;
+    string creator_id = 2;
+    string text = 3;
+    repeated string tags = 4;
+    IdeaTarget target = 5;
+    repeated string media_refs = 6;
+    int32 mutation_budget = 7;
+}
+
+message GetIdeaRequest {
+    string idea_id = 1;
+}
+
+message IdeaResponse {
+    string id = 1;
+    string creator_id = 2;
+    string world_id = 3;
+    string text = 4;
+    repeated string tags = 5;
+    IdeaTarget target = 6;
+    float virality_score = 7;
+    float emotional_valence = 8;
+    float complexity = 9;
+    optional string parent_id = 10;
+    optional string mutation_type = 11;
+    int32 adopter_count = 12;
+    int32 reach = 13;
+    google.protobuf.Timestamp created_at = 14;
+}
+
+// ============================================================================
+// Messages - Events
+// ============================================================================
+
+message StreamEventsRequest {
+    string world_id = 1;
+    repeated string event_types = 2;  // Filter by event types
+}
+
+message StreamSnapshotsRequest {
+    string world_id = 1;
+    int32 interval_steps = 2;  // Snapshot every N steps
+}
+
+message SimulationEvent {
+    string event_id = 1;
+    string event_type = 2;
+    string world_id = 3;
+    google.protobuf.Timestamp timestamp = 4;
+    bytes payload = 5;  // JSON-encoded event-specific data
+}
+
+message WorldSnapshot {
+    string world_id = 1;
+    int32 step = 2;
+    google.protobuf.Timestamp timestamp = 3;
+    int32 total_agents = 4;
+    int32 active_agents = 5;
+    int32 total_ideas = 6;
+    int32 total_adoptions = 7;
+    repeated IdeaStats idea_stats = 8;
+    map<string, RegionStats> regional_stats = 9;
+}
+
+message IdeaStats {
+    string idea_id = 1;
+    int32 adopters = 2;
+    int32 reach = 3;
+    int32 mutations = 4;
+    float r0 = 5;
+}
+
+message RegionStats {
+    int32 adopters = 1;
+    int32 ideas = 2;
+    float saturation = 3;
+}
+
+// ============================================================================
+// AI Service
+// ============================================================================
+
+service AIService {
+    rpc GenerateIdea(GenerateIdeaRequest) returns (IdeaResponse);
+    rpc MutateIdea(MutateIdeaRequest) returns (IdeaResponse);
+    rpc GetEmbedding(GetEmbeddingRequest) returns (EmbeddingResponse);
+    rpc GenerateVariants(GenerateVariantsRequest) returns (stream IdeaResponse);
+}
+
+message GenerateIdeaRequest {
+    string prompt = 1;
+    repeated string tags = 2;
+    IdeaTarget target = 3;
+    optional float virality_target = 4;
+    optional float emotional_target = 5;
+}
+
+message MutateIdeaRequest {
+    string idea_id = 1;
+    string mutation_type = 2;  // simplify, emotionalize, localize, polarize, memeify
+    optional string target_region = 3;
+    optional float intensity = 4;  // 0-1, how much to mutate
+}
+
+message GenerateVariantsRequest {
+    string idea_id = 1;
+    int32 count = 2;
+    repeated string mutation_types = 3;
+}
+
+message GetEmbeddingRequest {
+    string text = 1;
+}
+
+message EmbeddingResponse {
+    string embedding_id = 1;
+    repeated float vector = 2;
+    int32 dimensions = 3;
+}
+
+// ============================================================================
+// Analytics Service
+// ============================================================================
+
+service AnalyticsService {
+    rpc GetWorldMetrics(GetWorldMetricsRequest) returns (WorldMetricsResponse);
+    rpc GetIdeaMetrics(GetIdeaMetricsRequest) returns (IdeaMetricsResponse);
+    rpc GetLeaderboard(GetLeaderboardRequest) returns (LeaderboardResponse);
+    rpc StreamMetrics(StreamMetricsRequest) returns (stream WorldMetricsResponse);
+}
+
+message GetWorldMetricsRequest {
+    string world_id = 1;
+    optional int32 from_step = 2;
+    optional int32 to_step = 3;
+}
+
+message WorldMetricsResponse {
+    string world_id = 1;
+    int32 current_step = 2;
+    float overall_r0 = 3;
+    float saturation = 4;
+    int32 total_adoptions = 5;
+    int32 total_mutations = 6;
+    repeated int32 adoption_curve = 7;  // Adoptions per step
+    map<string, float> regional_saturation = 8;
+}
+
+message GetIdeaMetricsRequest {
+    string idea_id = 1;
+}
+
+message IdeaMetricsResponse {
+    string idea_id = 1;
+    float r0 = 2;
+    int32 reach = 3;
+    float adoption_rate = 4;
+    float saturation = 5;
+    repeated int32 adoption_curve = 6;
+    int32 mutation_count = 7;
+    float mutation_advantage = 8;
+}
+
+message GetLeaderboardRequest {
+    string world_id = 1;
+    int32 limit = 2;
+    string sort_by = 3;  // reach, r0, adoption_rate
+}
+
+message LeaderboardResponse {
+    repeated LeaderboardEntry entries = 1;
+}
+
+message LeaderboardEntry {
+    int32 rank = 1;
+    string idea_id = 2;
+    string idea_text = 3;
+    string creator_id = 4;
+    string creator_name = 5;
+    int32 reach = 6;
+    float adoption_rate = 7;
+    float r0 = 8;
+}
+
+message StreamMetricsRequest {
+    string world_id = 1;
+    int32 interval_ms = 2;
+}
+

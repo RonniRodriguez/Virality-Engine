@@ -1,0 +1,276 @@
+# Idea Inc - Docker Compose Configuration
+# Development environment with all services
+
+version: '3.8'
+
+services:
+  # ==========================================================================
+  # Infrastructure Services
+  # ==========================================================================
+  
+  postgres:
+    image: postgres:15-alpine
+    container_name: ideainc-postgres
+    environment:
+      POSTGRES_USER: ideainc
+      POSTGRES_PASSWORD: ideainc
+      POSTGRES_DB: ideainc
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ideainc"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ideainc-network
+
+  mongodb:
+    image: mongo:7.0
+    container_name: ideainc-mongodb
+    environment:
+      MONGO_INITDB_DATABASE: ideainc
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ideainc-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ideainc-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ideainc-network
+
+  # ==========================================================================
+  # Application Services
+  # ==========================================================================
+  
+  auth-service:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.auth
+    container_name: ideainc-auth
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=development
+      - DEBUG=true
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=ideainc
+      - POSTGRES_PASSWORD=ideainc
+      - POSTGRES_DB=ideainc
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - LOG_LEVEL=DEBUG
+      - LOG_FORMAT=text
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ideainc-network
+
+  simulation-service:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.simulation
+    container_name: ideainc-simulation
+    ports:
+      - "8001:8001"
+    environment:
+      - ENV=development
+      - DEBUG=true
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - MONGODB_HOST=mongodb
+      - MONGODB_PORT=27017
+      - MONGODB_DB=ideainc
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - KAFKA_ENABLED=false
+      - DEFAULT_POPULATION_SIZE=10000
+      - MAX_CONCURRENT_WORLDS=10
+      - LOG_LEVEL=DEBUG
+      - LOG_FORMAT=text
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ideainc-network
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.ai
+    container_name: ideainc-ai
+    ports:
+      - "8002:8002"
+    environment:
+      - ENV=development
+      - DEBUG=true
+      - LLM_ENABLED=false
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=gpt-3.5-turbo
+      - CHROMA_PERSIST_DIR=/app/data/chroma
+      - LOG_LEVEL=DEBUG
+      - LOG_FORMAT=text
+    volumes:
+      - chroma_data:/app/data/chroma
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ideainc-network
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.gateway
+    container_name: ideainc-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - ENV=development
+      - DEBUG=true
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - LOG_LEVEL=DEBUG
+      - LOG_FORMAT=text
+    depends_on:
+      - auth-service
+      - simulation-service
+      - ai-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ideainc-network
+
+  # ==========================================================================
+  # Observability (Optional)
+  # ==========================================================================
+  
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ideainc-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - ideainc-network
+    profiles:
+      - observability
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ideainc-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - ideainc-network
+    profiles:
+      - observability
+
+  # ==========================================================================
+  # Kafka (Optional - for production-like setup)
+  # ==========================================================================
+  
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: ideainc-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - ideainc-network
+    profiles:
+      - kafka
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: ideainc-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - ideainc-network
+    profiles:
+      - kafka
+
+# ==========================================================================
+# Networks
+# ==========================================================================
+
+networks:
+  ideainc-network:
+    driver: bridge
+
+# ==========================================================================
+# Volumes
+# ==========================================================================
+
+volumes:
+  postgres_data:
+  mongodb_data:
+  redis_data:
+  chroma_data:
+  prometheus_data:
+  grafana_data:
+
