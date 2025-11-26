@@ -91,11 +91,11 @@ This is a proper microservices playground: the gateway keeps public traffic sane
 - **AI/LLM**: OpenAI API / Local LLM
 
 ### Infrastructure
-- **Containers**: Docker
-- **Orchestration**: Kubernetes (K8s)
-- **Service Mesh**: Istio/Linkerd
-- **GitOps**: ArgoCD
-- **Observability**: OpenTelemetry, Prometheus, Grafana, Jaeger
+- **Containers**: Docker for local dev; production services use managed cloud runtimes
+- **Orchestration**: Kubernetes (K8s) if self-hosting the stack
+- **Service Mesh**: Istio/Linkerd, optional once you move off managed gateways
+- **GitOps**: ArgoCD (planned when deploying your own cluster)
+- **Observability**: OpenTelemetry, Prometheus, Grafana, Jaeger (self-hosted or managed equivalents)
 
 ### Frontend (Phase 2)
 - **Framework**: React 18+ with TypeScript
@@ -167,23 +167,20 @@ idea-inc/
 git clone https://github.com/your-org/idea-inc.git
 cd idea-inc
 
-# (Optional) Create .env pointing to Supabase Postgres
-cat <<'EOF' > .env
-POSTGRES_HOST=aws-1-us-east-2.pooler.supabase.com
-POSTGRES_PORT=6543
-POSTGRES_USER=postgres.zukptkfqnfofkodzebec
-POSTGRES_PASSWORD=Scholar@9783
-POSTGRES_DB=postgres
-POSTGRES_SSL=true
-EOF
+# Copy and edit env vars (points to managed Supabase, MongoDB Atlas, Redis Cloud)
+cp env.example .env
+vim .env
 
-# Start all services (development)
-docker-compose up -d
-
-# Or run individual services
-cd services/auth_service
+# Install Python deps and run services (frontend is Vite-based, see README)
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn main:app --reload
+uvicorn services.api_gateway.main:app --host 0.0.0.0 --port 8080
+
+# Run frontend
+cd frontend
+npm install
+npm run dev
 ```
 
 ## License
